@@ -1,0 +1,340 @@
+---
+title: "Tableau de bord foncier"
+author: "CEN Pays de la Loire"
+format: 
+  dashboard:
+    logo: img/Logo_CEN.png
+    theme:
+      - _variables.scss
+---
+
+```{r}
+#| label: Librairies
+#| include: false
+
+library(dplyr)
+library(tidyr)
+library(sf)
+library(tmap)
+library(stringr)
+library(DT)
+```
+
+```{r}
+#| label: Import des données
+#| include: false
+
+parcelles <- read_sf('./layers/Foncier_CEN.gpkg', layer = 'parcelles_cen')
+sites <- read_sf('./layers/Foncier_CEN.gpkg', layer = 'sites_cen')
+
+```
+
+```{r}
+#| label: Préparation sites
+#| include: false
+
+synt_site_parc <- parcelles |>
+  st_drop_geometry() |> 
+  mutate( dep = str_sub(num_parc_act, 1,2)) |> 
+  group_by(id_site_cen_parc) |> 
+  summarise(surf_site_ha = round(sum(surf_parc_maitrise_m2)/10000, 1),
+         nb_parc = n(), 
+         nb_prop = length(unique(proprietaires)),
+         dep = first(dep)
+         )
+
+site_map <- sites |> 
+  left_join(synt_site_parc, join_by(id_site_cen == id_site_cen_parc)) |> 
+  select(id_site_cen, 
+         nom_site, 
+         code_milieu_princ,
+         surf_site_ha,
+         nb_parc,
+         nb_prop)
+
+site_table <- sites |>
+  st_drop_geometry() |> 
+  left_join(synt_site_parc, join_by(id_site_cen == id_site_cen_parc)) |> 
+  select(dep, 
+         id_site_cen, 
+         nom_site, 
+         code_milieu_princ,
+         surf_site_ha,
+         nb_parc,
+         nb_prop)
+  
+
+```
+
+
+# Sites 
+
+## Row
+
+```{r}
+#| content: valuebox
+#| title: "Nb total de sites"
+#| icon: geo
+#| color: "#7c9900"
+length(sites$id_cen)
+
+```
+
+```{r}
+#| content: valuebox
+#| title: "Nb hors terrains militaires"
+#| icon: geo-fill
+#| color: "#7c9900"
+
+sites |> 
+  st_drop_geometry() |> 
+  filter(terrain_militaire != 1) |> 
+  summarise(n()) |> 
+  as.numeric()
+
+```
+```{r}
+#| content: valuebox
+#| title: "Surface total (ha)"
+#| icon: map
+#| color: "#7c9900"
+
+round(sum(parcelles$surf_parc_maitrise_m2)/10000, 1)
+
+```
+```{r}
+#| content: valuebox
+#| title: "Surface hors terrain militaires (ha)"
+#| icon: map-fill
+#| color: "#7c9900"
+
+round(sum(parcelles[parcelles$code_mfu2!= 'C7', ]$surf_parc_maitrise_m2)/10000, 1)
+
+```
+
+## Row {height=40%}
+
+```{r}
+#| title: Localisation des sites
+
+tm = tm_shape(site_map) +
+  tm_symbols(
+    fill = "code_milieu_princ",
+    col = "black",
+    lwd = 1
+  ) +
+  tm_labels("id_site_cen", xmod = 0.2)
+
+ttm()
+#> ℹ tmap mode set to "view".
+tm
+
+```
+### Column {.tabset}
+
+
+```{r}
+#| title: Sites
+
+datatable(site_table, 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Département", "Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+
+```{r}
+#| title: 44 - Loire-Atlantique
+
+datatable(site_table |> 
+            filter(dep == 44) |> 
+            select(-dep),
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+```{r}
+#| title: 49 - Maine-et-Loire
+
+datatable(site_table |> 
+            filter(dep == 49)|> 
+            select(-dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+```{r}
+#| title: 53 - Mayenne
+
+datatable(site_table |> 
+            filter(dep == 53)|> 
+            select(-dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+```{r}
+#| title: 72 - Sarthe
+
+datatable(site_table |> 
+            filter(dep == 72)|> 
+            select(-dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+```{r}
+#| title: 85 - Vendée
+
+datatable(site_table |> 
+            filter(dep == 85)|> 
+            select(-dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top")
+
+
+```
+
+
+# Parcelles
+
+```{r}
+#| label: Préparation parcelles
+#| include: false
+
+synt_parc_site <- parcelles |>
+  st_drop_geometry() |>
+  left_join(sites, join_by(id_site_cen_parc == id_site_cen)) |> 
+  select(
+    insee_dep,
+    insee_com,
+    num_parc,
+    id_site_cen_parc,
+    terrain_militaire,
+    #nom_site,
+    surf_parc_maitrise_m2,
+    date_acquisition
+  )
+
+parc_map <- parcelles |> 
+  select(
+    insee_dep,
+    insee_com,
+    num_parc,
+    id_site_cen_parc,
+    nom_site,
+    surf_parc_maitrise_m2,
+    date_acquisition
+  )
+
+parc_table <- parcelles |> 
+  st_drop_geometry() |> 
+  mutate(surf_ha = round(surf_parc_maitrise_m2/1000,1)) |> 
+  select(
+    insee_dep,
+    insee_com,
+    num_parc,
+    nom_site,
+    surf_ha,
+    date_acquisition
+  )
+
+```
+
+
+
+## Row
+
+```{r}
+#| content: valuebox
+#| title: "Nb total de parcelles"
+#| icon: geo
+#| color: "#7c9900"
+length(parcelles$num_parc)
+
+```
+
+```{r}
+#| content: valuebox
+#| title: "Nb hors terrains militaires"
+#| icon: geo-fill
+#| color: "#7c9900"
+
+synt_parc_site |> 
+  filter(terrain_militaire != 1) |> 
+  summarise(n()) |> 
+  as.numeric()
+
+```
+
+```{r}
+#| content: valuebox
+#| title: "Surface moyenne (ha)"
+#| icon: map
+#| color: "#7c9900"
+
+round(mean(parcelles$surf_parc_maitrise_m2)/10000, 1)
+
+```
+
+```{r}
+#| content: valuebox
+#| title: "Surface moyenne hors terrain militaires (ha)"
+#| icon: map-fill
+#| color: "#7c9900"
+
+round(mean(synt_parc_site[synt_parc_site$terrain_militaire != 1, ]$surf_parc_maitrise_m2)/1000, 1)
+
+```
+
+## Row {height=40%}
+
+```{r}
+#| title: Localisation des parcelles
+
+tm_p = tm_shape(parc_map) +
+  tm_polygons(
+    fill = "green",
+    col = "black",
+    lwd = 1
+  ) 
+
+
+tm_p
+
+```
+### Column {.tabset}
+
+
+```{r}
+#| title: Parcelles
+
+datatable(parc_table, 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Département", "Code commune", "idpar", "Site", "Surface (ha)", "Date d'acquisition"),
+          filter = "top")
+
+
+```
