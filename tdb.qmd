@@ -35,19 +35,44 @@ sites <- read_sf('./layers/Foncier_CEN.gpkg', layer = 'sites_cen')
 
 synt_site_parc <- parcelles |>
   st_drop_geometry() |> 
-  mutate( dep = str_sub(num_parc_act, 1,2)) |> 
+  mutate(prop = case_when(
+           code_mfu2 == "P1" ~ "Propriété",
+           code_mfu2 == "P2" ~ "Usufruit temporaire",
+           code_mfu2 == "L1" ~ "Bail emphytéotique",
+           code_mfu2 == "L4" ~ "Bail civil",
+           code_mfu2 == "L7" ~ "Convention",
+           code_mfu2 == "L8" ~ "Convention gestion Cons.littoral",
+           code_mfu2 == "L19" ~ "Convention gestion domaine public",
+           code_mfu2 == "L17" ~ "Accords oraux",
+           code_mfu2 == "L18" ~ "Autre",
+           code_mfu2 == "C4" ~ "Bail civil",
+           code_mfu2 == "C5" ~ "Bail rural",
+           code_mfu2 == "C6" ~ "Prêt à usage/commodat",
+           code_mfu2 == "C7" ~ "Convention",
+           code_mfu2 == "C8" ~ "Convention gestion Cons. littoral",
+           code_mfu2 == "C11" ~ "AOT domaine public de l'Etat",
+           code_mfu2 == "C12" ~ "Convention d'occupation temporaire domaine privé de l'Etat",
+           code_mfu2 == "C19" ~ "Convention de gestion domaine public",
+           code_mfu2 == "C20" ~ "Convention de gestion domaine privé de l'Etat",
+           code_mfu2 == "C17" ~ "Accords oraux",
+           code_mfu2 == "C18" ~ "Autre",
+           code_mfu2 == "O" ~ "ORE",
+           TRUE ~ code_mfu2
+         )) |> 
   group_by(id_site_cen_parc) |> 
-  summarise(surf_site_ha = round(sum(surf_parc_maitrise_m2)/10000, 1),
-         nb_parc = n(), 
-         nb_prop = length(unique(proprietaires)),
-         dep = first(dep)
-         )
+  dplyr::summarise(
+    surf_site_ha = round(sum(surf_parc_maitrise_m2)/10000, 1),
+    nb_parc = n(), 
+    nb_prop = length(unique(proprietaires)),
+    dep = first(insee_dep),
+    maitrise_fonciere = paste(unique(prop), collapse = " / ")
+    )
 
 site_map <- sites |> 
   left_join(synt_site_parc, join_by(id_site_cen == id_site_cen_parc)) |> 
   select(id_site_cen, 
-         nom_site, 
-         code_milieu_princ,
+         nom_site,
+         maitrise_fonciere,
          surf_site_ha,
          nb_parc,
          nb_prop)
@@ -58,7 +83,7 @@ site_table <- sites |>
   select(dep, 
          id_site_cen, 
          nom_site, 
-         code_milieu_princ,
+         maitrise_fonciere,
          surf_site_ha,
          nb_parc,
          nb_prop)
@@ -119,7 +144,7 @@ round(sum(parcelles[parcelles$code_mfu2!= 'C7', ]$surf_parc_maitrise_m2)/10000, 
 
 tm = tm_shape(site_map) +
   tm_symbols(
-    fill = "code_milieu_princ",
+    fill = "maitrise_fonciere",
     col = "black",
     lwd = 1
   ) +
@@ -139,9 +164,10 @@ tm
 datatable(site_table, 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Département", "Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
-
+          colnames = c("Département", "Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5,6))))
+)
 
 ```
 
@@ -154,8 +180,10 @@ datatable(site_table |>
             select(-dep),
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
+          colnames = c("Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(3,4,5))))
+)
 
 
 ```
@@ -168,8 +196,10 @@ datatable(site_table |>
             select(-dep), 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
+          colnames = c("Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(3,4,5))))
+)
 
 
 ```
@@ -182,9 +212,10 @@ datatable(site_table |>
             select(-dep), 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
-
+          colnames = c("Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(3,4,5))))
+)
 
 ```
 
@@ -196,8 +227,10 @@ datatable(site_table |>
             select(-dep), 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
+          colnames = c("Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(3,4,5))))
+)
 
 
 ```
@@ -210,9 +243,10 @@ datatable(site_table |>
             select(-dep), 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Code", "Nom", "Milieu", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
-          filter = "top")
-
+          colnames = c("Code", "Nom", "Maitrise fonciere", "Surface (ha)", "Nb parcelles", "Nb propriétaires"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(3,4,5))))
+)
 
 ```
 
@@ -225,37 +259,87 @@ datatable(site_table |>
 
 synt_parc_site <- parcelles |>
   st_drop_geometry() |>
+  mutate(prop = case_when(
+           code_mfu2 == "P1" ~ "Propriété",
+           code_mfu2 == "P2" ~ "Usufruit temporaire",
+           code_mfu2 == "L1" ~ "Bail emphytéotique",
+           code_mfu2 == "L4" ~ "Bail civil",
+           code_mfu2 == "L7" ~ "Convention",
+           code_mfu2 == "L8" ~ "Convention gestion Cons.littoral",
+           code_mfu2 == "L19" ~ "Convention gestion domaine public",
+           code_mfu2 == "L17" ~ "Accords oraux",
+           code_mfu2 == "L18" ~ "Autre",
+           code_mfu2 == "C4" ~ "Bail civil",
+           code_mfu2 == "C5" ~ "Bail rural",
+           code_mfu2 == "C6" ~ "Prêt à usage/commodat",
+           code_mfu2 == "C7" ~ "Convention",
+           code_mfu2 == "C8" ~ "Convention gestion Cons. littoral",
+           code_mfu2 == "C11" ~ "AOT domaine public de l'Etat",
+           code_mfu2 == "C12" ~ "Convention d'occupation temporaire domaine privé de l'Etat",
+           code_mfu2 == "C19" ~ "Convention de gestion domaine public",
+           code_mfu2 == "C20" ~ "Convention de gestion domaine privé de l'Etat",
+           code_mfu2 == "C17" ~ "Accords oraux",
+           code_mfu2 == "C18" ~ "Autre",
+           code_mfu2 == "O" ~ "ORE",
+           TRUE ~ code_mfu2
+         )) |> 
   left_join(sites, join_by(id_site_cen_parc == id_site_cen)) |> 
   select(
     insee_dep,
     insee_com,
     num_parc,
-    id_site_cen_parc,
+    prop,
+    nom_site.x,
     terrain_militaire,
-    #nom_site,
+    nom_site.x,
     surf_parc_maitrise_m2,
     date_acquisition
   )
 
 parc_map <- parcelles |> 
+  mutate(prop = case_when(
+           code_mfu2 == "P1" ~ "Propriété",
+           code_mfu2 == "P2" ~ "Usufruit temporaire",
+           code_mfu2 == "L1" ~ "Bail emphytéotique",
+           code_mfu2 == "L4" ~ "Bail civil",
+           code_mfu2 == "L7" ~ "Convention",
+           code_mfu2 == "L8" ~ "Convention gestion Cons.littoral",
+           code_mfu2 == "L19" ~ "Convention gestion domaine public",
+           code_mfu2 == "L17" ~ "Accords oraux",
+           code_mfu2 == "L18" ~ "Autre",
+           code_mfu2 == "C4" ~ "Bail civil",
+           code_mfu2 == "C5" ~ "Bail rural",
+           code_mfu2 == "C6" ~ "Prêt à usage/commodat",
+           code_mfu2 == "C7" ~ "Convention",
+           code_mfu2 == "C8" ~ "Convention gestion Cons. littoral",
+           code_mfu2 == "C11" ~ "AOT domaine public de l'Etat",
+           code_mfu2 == "C12" ~ "Convention d'occupation temporaire domaine privé de l'Etat",
+           code_mfu2 == "C19" ~ "Convention de gestion domaine public",
+           code_mfu2 == "C20" ~ "Convention de gestion domaine privé de l'Etat",
+           code_mfu2 == "C17" ~ "Accords oraux",
+           code_mfu2 == "C18" ~ "Autre",
+           code_mfu2 == "O" ~ "ORE",
+           TRUE ~ code_mfu2
+         )) |> 
   select(
     insee_dep,
     insee_com,
     num_parc,
-    id_site_cen_parc,
     nom_site,
+    prop,
     surf_parc_maitrise_m2,
     date_acquisition
   )
 
-parc_table <- parcelles |> 
+parc_table <- synt_parc_site |> 
   st_drop_geometry() |> 
   mutate(surf_ha = round(surf_parc_maitrise_m2/1000,1)) |> 
   select(
     insee_dep,
     insee_com,
     num_parc,
-    nom_site,
+    nom_site.x,
+    prop,
     surf_ha,
     date_acquisition
   )
@@ -315,7 +399,7 @@ round(mean(synt_parc_site[synt_parc_site$terrain_militaire != 1, ]$surf_parc_mai
 
 tm_p = tm_shape(parc_map) +
   tm_polygons(
-    fill = "green",
+    fill = "prop",
     col = "black",
     lwd = 1
   ) 
@@ -333,8 +417,89 @@ tm_p
 datatable(parc_table, 
           class = 'cell-border stripe', 
           rownames = FALSE, 
-          colnames = c("Département", "Code commune", "idpar", "Site", "Surface (ha)", "Date d'acquisition"),
-          filter = "top")
+          colnames = c("Département", "Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,2,4,5,6))))
+)
+
+
+```
+```{r}
+#| title: 44 - Loire-Atlantique
+
+datatable(parc_table |> 
+            filter(insee_dep == '44') |> 
+            select(-insee_dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5))))
+)
+
+
+```
+
+```{r}
+#| title: 49 - Maine-et-Loire
+
+datatable(parc_table |> 
+            filter(insee_dep == '49') |> 
+            select(-insee_dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5))))
+)
+
+
+```
+
+```{r}
+#| title: 53 - Mayenne
+
+datatable(parc_table |> 
+            filter(insee_dep == '53') |> 
+            select(-insee_dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5))))
+)
+
+
+```
+
+```{r}
+#| title: 72 - Sarthe
+
+datatable(parc_table |> 
+            filter(insee_dep == '72') |> 
+            select(-insee_dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5))))
+)
+
+
+```
+
+```{r}
+#| title: 85 - Vendée
+
+datatable(parc_table |> 
+            filter(insee_dep == '85') |> 
+            select(-insee_dep), 
+          class = 'cell-border stripe', 
+          rownames = FALSE, 
+          colnames = c("Code commune", "idpar", "Site", "Maitrise foncière", "Surface (ha)", "Date d'acquisition"),
+          filter = "top",
+          options = list(columnDefs = list(list(className = 'dt-center', targets = c(1,4,5))))
+)
 
 
 ```
